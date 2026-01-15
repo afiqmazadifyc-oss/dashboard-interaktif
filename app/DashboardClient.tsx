@@ -157,7 +157,7 @@ export default function DashboardClient({ initialData, initialPemasukanData }: D
               percentage={pemasukanStats.persenKeuntungan || 0}
             />
             <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              <PemasukanLeaderboard data={pemasukanStats.leaderboardData} />
+              <PemasukanLeaderboard data={pemasukanStats.leaderboardData || []} />
             </div>
           </div>
         </motion.div>
