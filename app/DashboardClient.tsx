@@ -4,19 +4,25 @@ import { useState, useMemo, useEffect, ChangeEvent, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import Papa from 'papaparse';
 
+// Impor komponen yang ada
 import KontenPieChart from './components/KontenPieChart';
-import PaymentChart from './components/PaymentChart';
+import PaymentLeaderboard from './components/PaymentLeaderboard';
 import TopProductsChart from './components/TopProductsChart';
 import TopProductsCountChart from './components/TopProductsCountChart';
 import Leaderboard from './components/Leaderboard';
 
-// Tipe Data untuk setiap baris dari Google Sheet
-type DataRow = {
-  'Bulan'?: string | null; 'Tanggal'?: string | null; 'Nama Akun'?: string | null; 'Rate'?: string | null; 'UA'?: string | null; 'Link Video'?: string | null; 'PID'?: string | null; 'KK/NK'?: string | null; 'Nama Produk'?: string | null; 'Konten'?: string | null; 'Views'?: string | null; 'Minimal Views'?: string | null; 'Lolos/Tidak'?: 'Lolos' | 'Tidak' | string | null; 'Lokasi'?: string | null; 'PAYMENT'?: string | null;
-};
-interface DashboardClientProps { initialData: DataRow[] }
+// Impor komponen BARU
+import PemasukanLeaderboard from './components/PemasukanLeaderboard';
+import ProfitStatCard from './components/ProfitStatCard';
 
-// Helper Function untuk mengubah format tanggal dari Google Sheet
+// Tipe Data
+type DataRow = { 'Bulan'?: string | null; 'Tanggal'?: string | null; 'Nama Akun'?: string | null; 'Rate'?: string | null; 'UA'?: string | null; 'Link Video'?: string | null; 'PID'?: string | null; 'KK/NK'?: string | null; 'Nama Produk'?: string | null; 'Konten'?: string | null; 'Views'?: string | null; 'Minimal Views'?: string | null; 'Lolos/Tidak'?: 'Lolos' | 'Tidak' | string | null; 'Lokasi'?: string | null; 'PAYMENT'?: string | null; };
+type PemasukanDataRow = { 'BULAN'?: string | null; 'Kreator'?: string | null; 'Omset'?: string | null; };
+
+// Terima prop baru: initialPemasukanData
+interface DashboardClientProps { initialData: DataRow[], initialPemasukanData: PemasukanDataRow[] }
+
+// Helper
 const parseDate = (dateString: string): Date | null => {
   if (!dateString) return null;
   const parts = dateString.split('-');
@@ -28,8 +34,6 @@ const parseDate = (dateString: string): Date | null => {
   if (isNaN(day) || isNaN(year) || month === undefined) return null;
   return new Date(year, month, day, 12);
 };
-
-// Komponen Card untuk Statistik
 const StatCard = ({ title, value, className = '' }: { title: string; value: string | number, className?: string }) => (
   <div className={`p-6 rounded-lg shadow-lg text-white flex flex-col justify-center items-center ${className}`}>
     <h3 className="text-sm uppercase text-gray-300 font-bold tracking-wider">{title}</h3>
@@ -37,8 +41,25 @@ const StatCard = ({ title, value, className = '' }: { title: string; value: stri
   </div>
 );
 
-export default function DashboardClient({ initialData }: DashboardClientProps) {
-  // State untuk semua filter dan UI
+// Helper BARU: Cek jika filter adalah 1 bulan penuh
+const getSelectedMonth = (start: string, end: string): string | null => {
+  if (!start || !end) return null;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  startDate.setHours(12); // Hindari masalah zona waktu
+  endDate.setHours(12);
+
+  if (startDate.getDate() !== 1) return null;
+  
+  const lastDay = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+  if (endDate.getDate() !== lastDay || startDate.getMonth() !== endDate.getMonth()) return null;
+
+  return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(startDate);
+};
+
+export default function DashboardClient({ initialData, initialPemasukanData }: DashboardClientProps) {
+  
+  // State filter, paginasi, dll
   const [namaCreatorFilter, setNamaCreatorFilter] = useState('');
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,16 +73,47 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
   const uniqueCreators = useMemo(() => [...new Set(dataFilteredByDate.map(item => item['Nama Akun']).filter(Boolean))] as string[], [dataFilteredByDate]);
   const filteredData = useMemo(() => { if (!namaCreatorFilter) return dataFilteredByDate; return dataFilteredByDate.filter(row => row['Nama Akun'] === namaCreatorFilter); }, [dataFilteredByDate, namaCreatorFilter]);
   
-  // Efek untuk reset filter & paginasi
+  // Efek
   useEffect(() => { if (namaCreatorFilter && !uniqueCreators.includes(namaCreatorFilter)) { setNamaCreatorFilter(''); } }, [uniqueCreators, namaCreatorFilter]);
   useEffect(() => { setCurrentPage(1); }, [filteredData]);
 
-  // Logika paginasi
+  // Logika Paginasi
   const paginatedData = useMemo(() => { const startIndex = (currentPage - 1) * itemsPerPage; return filteredData.slice(startIndex, startIndex + itemsPerPage); }, [filteredData, currentPage]);
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  // Kalkulasi statistik
-  const { totalPayment, totalCreator } = useMemo(() => { const totalCreatorCount = uniqueCreators.length; const totalPayment = filteredData.reduce((sum, row) => { const paymentValue = parseInt((row['PAYMENT'] || '').replace(/[^0-9]/g, ''), 10); return sum + (isNaN(paymentValue) ? 0 : paymentValue); }, 0); return { totalPayment, totalCreator: totalCreatorCount }; }, [filteredData, uniqueCreators]);
+  // Kalkulasi statistik (Total Payment)
+  const { totalPayment, totalCreator } = useMemo(() => {
+     const totalCreatorCount = uniqueCreators.length; 
+     const totalPayment = filteredData.reduce((sum, row) => { const paymentValue = parseInt((row['PAYMENT'] || '').replace(/[^0-9]/g, ''), 10); return sum + (isNaN(paymentValue) ? 0 : paymentValue); }, 0); 
+     return { totalPayment, totalCreator: totalCreatorCount }; 
+  }, [filteredData, uniqueCreators]);
+
+  // LOGIKA BARU: Kalkulasi Pemasukan & Profit
+  const pemasukanStats = useMemo(() => {
+    const selectedMonth = getSelectedMonth(dateFilter.start, dateFilter.end);
+    
+    if (!selectedMonth) return { show: false };
+
+    const monthlyPemasukanData = initialPemasukanData.filter(
+      row => row['BULAN']?.toLowerCase() === selectedMonth.toLowerCase()
+    );
+
+    const totalPemasukan = monthlyPemasukanData.reduce((sum, row) => {
+      const omset = parseInt(row['Omset'] || '0', 10);
+      return sum + (isNaN(omset) ? 0 : omset);
+    }, 0);
+
+    const totalKeuntungan = totalPemasukan - totalPayment;
+    const persenKeuntungan = totalPayment > 0 ? (totalKeuntungan / totalPayment) * 100 : 0;
+    
+    return {
+      show: true,
+      totalPemasukan,
+      totalKeuntungan,
+      persenKeuntungan,
+      leaderboardData: monthlyPemasukanData,
+    };
+  }, [dateFilter, initialPemasukanData, totalPayment]);
   
   // Handlers
   const handleCreatorChange = (e: ChangeEvent<HTMLSelectElement>) => { setNamaCreatorFilter(e.target.value) };
@@ -89,24 +141,46 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
         </div>
       </motion.div>
       
-      <motion.div className="my-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg" {...animationProps} transition={{ duration: 0.5, delay: 0.1 }}>
+      {/* BLOK KONDISIONAL BARU: Muncul jika filter 1 bulan */}
+      {pemasukanStats.show && (
+        <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.1 }}>
+          <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Analisis Pemasukan Bulanan</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <StatCard 
+              title="Total Pemasukan" 
+              value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pemasukanStats.totalPemasukan)}
+              className="bg-gradient-to-br from-blue-500 to-blue-700"
+            />
+            <ProfitStatCard 
+              label="Laba / Rugi"
+              profit={pemasukanStats.totalKeuntungan}
+              percentage={pemasukanStats.persenKeuntungan}
+            />
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+              <PemasukanLeaderboard data={pemasukanStats.leaderboardData} />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      <motion.div className="my-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg" {...animationProps} transition={{ duration: 0.5, delay: 0.2 }}>
         <Leaderboard data={filteredData} />
       </motion.div>
 
-      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.2 }}>
+      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.3 }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Video Contribution</h3><KontenPieChart data={filteredData} /></div>
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><PaymentChart data={filteredData} /></div>
+          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><PaymentLeaderboard data={filteredData} /></div>
           <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><TopProductsChart data={filteredData} /></div>
           <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><TopProductsCountChart data={filteredData} /></div>
         </div>
       </motion.div>
       
-      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.3 }}>
+      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.4 }}>
         <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg"><label htmlFor="search" className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Cari Video (berdasarkan Nama Creator atau Nama Produk)</label><input type="text" id="search" value={searchTerm} onChange={handleSearchChange} placeholder="Ketik nama kreator atau produk..." className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"/></div>
       </motion.div>
       
-      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.4 }}>
+      <motion.div {...animationProps} transition={{ duration: 0.5, delay: 0.5 }}>
         <div className="overflow-x-auto bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Menampilkan **{paginatedData.length}** dari **{filteredData.length}** hasil.</p>
@@ -121,9 +195,9 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     {paginatedData.map((row: DataRow, index: number) => (
                     <tr key={index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                         {(Object.keys(initialData[0] || {}) as Array<keyof DataRow>).map((header, i) => {
-                        const cellValue = row[header];
-                        if (header === 'Link Video' && cellValue) { return (<td key={i} className="px-4 py-2 whitespace-nowrap"><div className="flex items-center space-x-2"><a href={cellValue} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition">Lihat Video</a><button onClick={() => handleCopyLink(cellValue)} className="px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition">{copiedLink === cellValue ? 'Copied!' : 'Copy Link'}</button></div></td>); }
-                        return (<td key={i} className="px-4 py-3 whitespace-nowrap">{cellValue ?? '-'}</td>);
+                          const cellValue = row[header];
+                          if (header === 'Link Video' && cellValue) { return (<td key={i} className="px-4 py-2 whitespace-nowrap"><div className="flex items-center space-x-2"><a href={cellValue} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition">Lihat Video</a><button onClick={() => handleCopyLink(cellValue)} className="px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition">{copiedLink === cellValue ? 'Copied!' : 'Copy Link'}</button></div></td>); }
+                          return (<td key={i} className="px-4 py-3 whitespace-nowrap">{cellValue ?? '-'}</td>);
                         })}
                     </tr>
                     ))}
