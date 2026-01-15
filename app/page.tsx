@@ -1,6 +1,7 @@
 import { getSheetData, getPemasukanData } from '../lib/sheets';
 import DashboardClient from './DashboardClient';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
+export const dynamic = 'force-dynamic';
 
 // Atur revalidate agar data di-refresh setiap 10 menit
 export const revalidate = 600;
