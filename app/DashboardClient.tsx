@@ -153,8 +153,8 @@ export default function DashboardClient({ initialData, initialPemasukanData }: D
             />
             <ProfitStatCard 
               label="Laba / Rugi"
-              profit={pemasukanStats.totalKeuntungan}
-              percentage={pemasukanStats.persenKeuntungan}
+              profit={pemasukanStats.totalKeuntungan || 0}
+              percentage={pemasukanStats.persenKeuntungan || 0}
             />
             <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
               <PemasukanLeaderboard data={pemasukanStats.leaderboardData} />
