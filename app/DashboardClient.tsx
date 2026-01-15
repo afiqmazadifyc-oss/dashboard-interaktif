@@ -148,7 +148,7 @@ export default function DashboardClient({ initialData, initialPemasukanData }: D
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <StatCard 
               title="Total Pemasukan" 
-              value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pemasukanStats.totalPemasukan)}
+              value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pemasukanStats.totalPemasukan || 0)}
               className="bg-gradient-to-br from-blue-500 to-blue-700"
             />
             <ProfitStatCard 
