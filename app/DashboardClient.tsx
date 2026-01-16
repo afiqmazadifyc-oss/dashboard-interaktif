@@ -265,3 +265,4 @@ export default function DashboardClient({ initialData, initialPemasukanData }: D
     </div>
   );
 }
+// force update logic v2
