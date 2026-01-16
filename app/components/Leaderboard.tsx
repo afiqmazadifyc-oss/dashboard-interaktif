@@ -61,7 +61,6 @@ export default function Leaderboard({ data }: LeaderboardProps) {
 
   return (
     <div>
-      <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Leaderboard Creator</h3>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {leaderboardData.map((creator, index) => (
           <LeaderboardCard
