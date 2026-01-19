@@ -36,7 +36,7 @@ export default function Leaderboard({ data }: LeaderboardProps) {
       const creatorName = curr['Nama Akun'];
       
       // Mengubah string 'Views' menjadi angka
-      const views = parseInt(curr['Views']?.replace(/,/g, '') || '0', 10);
+      const views = parseInt(curr['Views']?.replace(/\./g, '') || '0', 10);
 
       if (creatorName) {
         if (!acc[creatorName]) {
